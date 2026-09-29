@@ -1,8 +1,10 @@
-from rest_framework.decorators import api_view
+from rest_framework.decorators import api_view, permission_classes
+from rest_framework.permissions import IsAdminUser
 from rest_framework.response import Response
 from rest_framework.viewsets import ModelViewSet
 
 from events.models import Event, Location, Genre, Artist, Ticket, Sector, Seat, EventSector, TicketPool
+from events.permissions import IsAdminOrReadOnly
 from events.serializers import EventSerializer, LocationSerializer, ArtistSerializer, GenreSerializer, \
     EventDetailSerializer, TicketSerializer, TicketDetailSerializer, SectorSerializer, SeatSerializer, \
     EventSectorSerializer, TicketPoolSerializer
@@ -13,6 +15,7 @@ from events.serializers import EventSerializer, LocationSerializer, ArtistSerial
 #
 
 @api_view(['GET', 'POST'])
+@permission_classes([IsAdminOrReadOnly])
 def event_list(request):
     if request.method == 'GET':
         events = Event.objects.all()
@@ -27,6 +30,7 @@ def event_list(request):
         return Response(serializer.errors, status=400)
 
 @api_view(['GET', 'PUT', 'DELETE'])
+@permission_classes([IsAdminOrReadOnly])
 def event_detail(request, pk):
     try:
         event = Event.objects.get(pk=pk)
@@ -49,30 +53,37 @@ def event_detail(request, pk):
 class LocationViewSet(ModelViewSet):
     queryset = Location.objects.all()
     serializer_class = LocationSerializer
+    permission_classes = [IsAdminOrReadOnly]
 
 class SectorViewSet(ModelViewSet):
     queryset = Sector.objects.all()
     serializer_class = SectorSerializer
+    permission_classes = [IsAdminOrReadOnly]
 
 class SeatViewSet(ModelViewSet):
     queryset = Seat.objects.all()
     serializer_class = SeatSerializer
+    permission_classes = [IsAdminOrReadOnly]
 
 class EventSectorViewSet(ModelViewSet):
     queryset = EventSector.objects.all()
     serializer_class = EventSectorSerializer
+    permission_classes = [IsAdminOrReadOnly]
 
 class GenreViewSet(ModelViewSet):
     queryset = Genre.objects.all()
     serializer_class = GenreSerializer
+    permission_classes = [IsAdminOrReadOnly]
 
 class ArtistViewSet(ModelViewSet):
     queryset = Artist.objects.all()
     serializer_class = ArtistSerializer
+    permission_classes = [IsAdminOrReadOnly]
 
 class TicketViewSet(ModelViewSet):
     queryset = Ticket.objects.all()
     serializer_class = TicketSerializer
+    permission_classes = [IsAdminOrReadOnly]
 
     def get_serializer_class(self):
         if self.action == "retrieve":
@@ -83,3 +94,4 @@ class TicketViewSet(ModelViewSet):
 class TicketPoolViewSet(ModelViewSet):
     queryset = TicketPool.objects.all()
     serializer_class = TicketPoolSerializer
+    permission_classes = [IsAdminOrReadOnly]

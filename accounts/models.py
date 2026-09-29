@@ -10,3 +10,5 @@ class CustomUser(AbstractUser):
     sex = models.CharField(max_length=2, choices=sexes)
     birth_date = models.DateField()
 
+    REQUIRED_FIELDS = ["email", "sex", "birth_date"]
+
