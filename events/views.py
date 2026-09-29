@@ -2,10 +2,15 @@ from rest_framework.decorators import api_view
 from rest_framework.response import Response
 from rest_framework.viewsets import ModelViewSet
 
-from events.models import Event, Location, Genre, Artist, Ticket
+from events.models import Event, Location, Genre, Artist, Ticket, Sector, Seat, EventSector, TicketPool
 from events.serializers import EventSerializer, LocationSerializer, ArtistSerializer, GenreSerializer, \
-    EventDetailSerializer, TicketSerializer, TicketDetailSerializer
+    EventDetailSerializer, TicketSerializer, TicketDetailSerializer, SectorSerializer, SeatSerializer, \
+    EventSectorSerializer, TicketPoolSerializer
 
+
+# EventViewSet should be added, because it needs to find a EventSectors based on the location
+# also capacity should be validated somehow
+#
 
 @api_view(['GET', 'POST'])
 def event_list(request):
@@ -45,6 +50,18 @@ class LocationViewSet(ModelViewSet):
     queryset = Location.objects.all()
     serializer_class = LocationSerializer
 
+class SectorViewSet(ModelViewSet):
+    queryset = Sector.objects.all()
+    serializer_class = SectorSerializer
+
+class SeatViewSet(ModelViewSet):
+    queryset = Seat.objects.all()
+    serializer_class = SeatSerializer
+
+class EventSectorViewSet(ModelViewSet):
+    queryset = EventSector.objects.all()
+    serializer_class = EventSectorSerializer
+
 class GenreViewSet(ModelViewSet):
     queryset = Genre.objects.all()
     serializer_class = GenreSerializer
@@ -62,3 +79,7 @@ class TicketViewSet(ModelViewSet):
             return TicketDetailSerializer
 
         return super().get_serializer_class()
+
+class TicketPoolViewSet(ModelViewSet):
+    queryset = TicketPool.objects.all()
+    serializer_class = TicketPoolSerializer

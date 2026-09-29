@@ -4,19 +4,15 @@ from django.contrib.auth import get_user_model
 from rest_framework import serializers
 from rest_framework.serializers import ModelSerializer
 
-from events.models import Event, Location, Artist, Genre, Ticket
+from events.models import Event, Location, Artist, Genre, Ticket, Sector, Seat, EventSector, TicketPool
 
 
 class EventSerializer(serializers.Serializer):
     name = serializers.CharField()
     description = serializers.CharField(allow_null=True)
-    date = serializers.DateTimeField()
-    spots = serializers.IntegerField(min_value=0)
-    price = serializers.DecimalField(max_digits=10, min_value=0, decimal_places=2)
-
-    location = serializers.PrimaryKeyRelatedField(
-        queryset=Location.objects.all()
-    )
+    start_datetime = serializers.DateTimeField()
+    end_datetime = serializers.DateTimeField()
+    total_capacity = serializers.IntegerField(read_only=True)
 
     artist = serializers.PrimaryKeyRelatedField(
         many=True,
@@ -68,14 +64,64 @@ class GenreSerializer(ModelSerializer):
         model = Genre
         fields = '__all__'
 
+class SectorSerializer(ModelSerializer):
+    class Meta:
+        model = Sector
+        fields = "__all__"
+
+class SeatSerializer(ModelSerializer):
+    sector = serializers.PrimaryKeyRelatedField(
+        queryset = Sector.objects.filter(
+            type = Sector.Type.SEAT
+        )
+    )
+
+    class Meta:
+        model = Seat
+        fields = "__all__"
+
+
+class EventSectorSerializer(ModelSerializer):
+    effective_capacity = serializers.IntegerField(read_only=True)
+
+    class Meta:
+        model = EventSector
+        fields = "__all__"
+
+    def validate(self, attrs):
+        attrs = super().validate(attrs)
+
+        event = attrs.get("event")
+        sector = attrs.get("sector")
+
+        if self.instance is not None:
+            if event is None:
+                event = self.instance.event
+            if sector is None:
+                sector = self.instance.sector
+
+        other_sectors = EventSector.objects.filter(event=event)
+
+        if self.instance is not None:
+            other_sectors = other_sectors.exclude(pk=self.instance.pk)
+
+        different_location_exists = other_sectors.exclude(
+            sector__location_id=sector.location_id
+        ).exists()
+
+        if different_location_exists:
+            raise serializers.ValidationError({
+                "sector": ("All sectors must belong to the same location")
+            })
+
+        return attrs
+
 class EventDetailSerializer(serializers.Serializer):
     name = serializers.CharField(max_length=255)
     description = serializers.CharField()
-    date = serializers.DateTimeField()
-    spots = serializers.IntegerField()
-    price = serializers.DecimalField(max_digits=10, decimal_places=2)
+    start_datetime = serializers.DateTimeField()
+    end_datetime = serializers.DateTimeField()
 
-    location = LocationSerializer()
     artist = ArtistSerializer(many=True)
 
 # IDK if this should not be exported to another app
@@ -83,6 +129,12 @@ class UserSerializer(serializers.ModelSerializer):
     class Meta:
         model = get_user_model()
         fields = ("id", "username", "email")
+
+
+class TicketPoolSerializer(ModelSerializer):
+    class Meta:
+        model = TicketPool
+        fields = "__all__"
 
 class TicketSerializer(serializers.ModelSerializer):
     class Meta:

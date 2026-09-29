@@ -22,10 +22,6 @@ from events import views as event_views
 from accounts import views as account_views
 
 router = DefaultRouter()
-router.register('locations', event_views.LocationViewSet)
-router.register("artists", event_views.ArtistViewSet)
-router.register("genres", event_views.GenreViewSet)
-router.register("tickets", event_views.TicketViewSet)
 
 
 router.register("accounts", account_views.CustomUserViewSet)

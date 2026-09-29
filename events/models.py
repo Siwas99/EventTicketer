@@ -1,5 +1,8 @@
+from typing import cast
+
 from django.conf import settings
 from django.db import models
+from django.db.models.functions import Coalesce
 
 
 # LOCATION
@@ -22,6 +25,9 @@ class Sector(models.Model):
     capacity = models.PositiveIntegerField()
     type = models.TextField(max_length=10, choices=Type, default=Type.STAND)
     location = models.ForeignKey(Location, on_delete=models.CASCADE)
+
+    def __str__(self):
+        return self.location.name + " - " + self.name
 
 
 class Seat(models.Model):
@@ -53,7 +59,6 @@ class Event(models.Model):
     description = models.TextField(null=True, blank=True)
     start_datetime = models.DateTimeField()
     end_datetime = models.DateTimeField()
-    capacity = models.PositiveIntegerField(blank=True) #TODO remember to set default total_capacity during create
     artist = models.ManyToManyField(Artist)
 
     def __str__(self):
@@ -62,13 +67,17 @@ class Event(models.Model):
     @property
     def total_capacity(self):
         return self.eventsector_set.aggregate(
-            total=models.Sum("sector__capacity", default=0)
+            total=models.Sum(
+                Coalesce("capacity", "sector__capacity"),
+                default=0,
+            )
         )["total"]
 
 
 class EventSector(models.Model):
     event = models.ForeignKey(Event, on_delete=models.CASCADE)
     sector = models.ForeignKey(Sector, on_delete=models.CASCADE)
+    capacity = models.PositiveIntegerField(null=True, blank=True)
 
     class Meta:
         constraints  = [
@@ -77,6 +86,15 @@ class EventSector(models.Model):
                 name="unique_event_sector"
             ),
         ]
+
+    @property
+    def effective_capacity(self) -> int:
+        capacity = cast(int | None, self.capacity)
+
+        if capacity is not None:
+            return capacity
+
+        return self.sector.capacity
 
     def __str__(self):
         return self.event.name + ' - ' + self.sector.name
