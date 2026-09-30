@@ -1,6 +1,9 @@
-from rest_framework.decorators import api_view, permission_classes
-from rest_framework.permissions import IsAdminUser
+from django.db.utils import DatabaseError
+from rest_framework import status
+from rest_framework.decorators import api_view, permission_classes, action
+from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
+from rest_framework.status import HTTP_201_CREATED, HTTP_500_INTERNAL_SERVER_ERROR
 from rest_framework.viewsets import ModelViewSet
 
 from events.models import Event, Location, Genre, Artist, Ticket, Sector, Seat, EventSector, TicketPool
@@ -8,11 +11,8 @@ from events.permissions import IsAdminOrReadOnly
 from events.serializers import EventSerializer, LocationSerializer, ArtistSerializer, GenreSerializer, \
     EventDetailSerializer, TicketSerializer, TicketDetailSerializer, SectorSerializer, SeatSerializer, \
     EventSectorSerializer, TicketPoolSerializer
+from events.services import create_random_ticket, NoTicketAvailable
 
-
-# EventViewSet should be added, because it needs to find a EventSectors based on the location
-# also capacity should be validated somehow
-#
 
 @api_view(['GET', 'POST'])
 @permission_classes([IsAdminOrReadOnly])
@@ -91,7 +91,33 @@ class TicketViewSet(ModelViewSet):
 
         return super().get_serializer_class()
 
+    @action(
+        detail=False,
+        methods=['POST'],
+        url_path="random",
+        permission_classes=[IsAuthenticated]
+    )
+    def get_random_ticket(self, request):
+        try:
+            ticket = create_random_ticket(user=request.user)
+
+        except NoTicketAvailable as exc:
+            return Response(
+                {"detail": str(exc)},
+                status=status.HTTP_409_CONFLICT
+            )
+
+        except DatabaseError:
+            return Response(
+                {"detail": "Ticket creating failed"},
+                status=status.HTTP_500_INTERNAL_SERVER_ERROR
+            )
+
+        serializer = self.get_serializer(ticket)
+        return Response(serializer.data, status=HTTP_201_CREATED)
+
 class TicketPoolViewSet(ModelViewSet):
     queryset = TicketPool.objects.all()
     serializer_class = TicketPoolSerializer
     permission_classes = [IsAdminOrReadOnly]
+
