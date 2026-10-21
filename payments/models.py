@@ -17,12 +17,6 @@ class Order(models.Model):
 
     user = models.ForeignKey(get_user_model(), on_delete=models.CASCADE)
 
-    @property
-    def total_amount(self):
-        return self.tickets.aggregate(
-            total=models.Sum("purchase_price", default=0),
-        )["total"]
-
 class Payment(models.Model):
     class Status(models.TextChoices):
         PENDING = "pending"
