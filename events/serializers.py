@@ -141,6 +141,11 @@ class TicketSerializer(serializers.ModelSerializer):
         model = Ticket
         fields = "__all__"
 
-class TicketDetailSerializer(serializers.Serializer):
-    event = EventDetailSerializer(read_only=True)
-    user = UserSerializer(read_only=True)
+class TicketDetailSerializer(serializers.ModelSerializer):
+    event = EventDetailSerializer(
+        source='ticket_pool.sector.event',
+        read_only=True
+    )
+    class Meta:
+        model=Ticket
+        fields = "__all__"

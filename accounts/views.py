@@ -5,13 +5,13 @@ from rest_framework.response import Response
 from rest_framework.viewsets import ModelViewSet
 
 from accounts.models import CustomUser
-from accounts.serializers import CreateCustomUserSerializer, ListCustomUserSerializer, RegisterCustomUserSerializer
+from accounts.serializers import AdminUserSerializer, ListCustomUserSerializer, CustomUserSerializer
 
 
 # Create your views here.
 class CustomUserViewSet(ModelViewSet):
     queryset = CustomUser.objects.all()
-    serializer_class = CreateCustomUserSerializer
+    serializer_class = AdminUserSerializer
     permission_classes = [IsAdminUser]
 
     def get_serializer_class(self):
@@ -23,7 +23,7 @@ class CustomUserViewSet(ModelViewSet):
 @api_view(['POST'])
 @permission_classes([AllowAny])
 def register_custom_user_view(request):
-    serializer = RegisterCustomUserSerializer(data=request.data)
+    serializer = CustomUserSerializer(data=request.data)
     if serializer.is_valid():
         serializer.save()
         return redirect("rest_framework:login")

@@ -1,3 +1,5 @@
+from copy import copy
+
 from django.contrib.auth.forms import UserCreationForm
 from rest_framework import serializers
 from django.contrib.auth.password_validation import validate_password
@@ -20,22 +22,7 @@ class ListCustomUserSerializer(serializers.ModelSerializer):
             "birth_date"
         )
 
-class CreateCustomUserSerializer(serializers.ModelSerializer):
-    class Meta(UserCreationForm.Meta):
-        model = CustomUser
-        fields = (
-            "id",
-            "username",
-            "password",
-            "email",
-            "first_name",
-            "last_name",
-            "is_staff",
-            "sex",
-            "birth_date"
-        )
-
-class RegisterCustomUserSerializer(serializers.ModelSerializer):
+class CustomUserSerializer(serializers.ModelSerializer):
     class Meta:
         model = CustomUser
         fields = (
@@ -55,11 +42,41 @@ class RegisterCustomUserSerializer(serializers.ModelSerializer):
         return CustomUser.objects.create_user(**validated_data)
 
     def validate(self, attrs):
-        user = CustomUser(**attrs)
+        password = attrs.get('password')
+
+        if password is None:
+            return attrs
+
+        if self.instance is not None:
+            user = copy(self.instance)
+        else:
+            user = CustomUser()
+
+        for field, value in attrs.items():
+            if field != "password":
+                setattr(user, field, value)
+
         try:
-            validate_password(attrs['password'], user=user)
+            validate_password(password, user=user)
         except DjangoValidationError as exc:
             raise serializers.ValidationError({
                 "password": exc.messages,
             })
         return attrs
+
+    def update(self, instance, validated_data):
+        password = validated_data.pop("password", None)
+
+        if password is not None:
+            instance.set_password(password)
+
+        return super().update(instance, validated_data)
+
+class AdminUserSerializer(CustomUserSerializer):
+    class Meta(CustomUserSerializer.Meta):
+        fields = (
+            "id",
+            *CustomUserSerializer.Meta.fields,
+            "is_staff",
+        )
+        read_only_fields = ("id",)

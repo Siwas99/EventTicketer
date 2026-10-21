@@ -3,7 +3,7 @@ from rest_framework import status
 from rest_framework.decorators import api_view, permission_classes, action
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
-from rest_framework.status import HTTP_201_CREATED, HTTP_500_INTERNAL_SERVER_ERROR
+from rest_framework.status import HTTP_201_CREATED
 from rest_framework.viewsets import ModelViewSet
 
 from events.models import Event, Location, Genre, Artist, Ticket, Sector, Seat, EventSector, TicketPool
@@ -83,7 +83,15 @@ class ArtistViewSet(ModelViewSet):
 class TicketViewSet(ModelViewSet):
     queryset = Ticket.objects.all()
     serializer_class = TicketSerializer
-    permission_classes = [IsAdminOrReadOnly]
+    permission_classes = [IsAuthenticated]
+
+    def get_queryset(self):
+        queryset = super().get_queryset()
+
+        user = self.request.user
+        if user.is_staff:
+            return queryset
+        return queryset.filter(user = self.request.user)
 
     def get_serializer_class(self):
         if self.action == "retrieve":
