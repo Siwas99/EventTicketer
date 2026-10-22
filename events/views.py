@@ -1,3 +1,4 @@
+from django.db import transaction
 from django.db.utils import DatabaseError
 from rest_framework import status
 from rest_framework.decorators import api_view, permission_classes, action
@@ -11,7 +12,8 @@ from events.permissions import IsAdminOrReadOnly
 from events.serializers import EventSerializer, LocationSerializer, ArtistSerializer, GenreSerializer, \
     EventDetailSerializer, TicketSerializer, TicketDetailSerializer, SectorSerializer, SeatSerializer, \
     EventSectorSerializer, TicketPoolSerializer
-from events.services import create_random_ticket, NoTicketAvailable
+from events.services import create_random_ticket, NoTicketAvailable, try_create_ticket
+from payments.models import Order
 
 
 @api_view(['GET', 'POST'])
@@ -99,6 +101,7 @@ class TicketViewSet(ModelViewSet):
 
         return super().get_serializer_class()
 
+
     @action(
         detail=False,
         methods=['POST'],
@@ -124,6 +127,45 @@ class TicketViewSet(ModelViewSet):
         serializer = self.get_serializer(ticket)
         return Response(serializer.data, status=HTTP_201_CREATED)
 
+    @action(
+        detail=False,
+        methods=['POST'],
+        url_path="order",
+            permission_classes=[IsAuthenticated]
+    )
+    @transaction.atomic
+    def order_ticket(self, request):
+        serializer = self.get_serializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+
+        ticket_pool = serializer.validated_data["ticket_pool"]
+        seat = serializer.validated_data.get("seat")
+
+        if seat is not None and Ticket.objects.select_for_update().filter(seat = seat, ticket_pool__sector=ticket_pool.sector).exists():
+            return Response(
+                {"detail": 'Seat is already taken'},
+                status=status.HTTP_409_CONFLICT
+            )
+
+        ticket = try_create_ticket(
+            user=request.user,
+            event_sector_id=ticket_pool.sector_id,
+            ticket_pool_id=ticket_pool.pk,
+            seat_id=seat.pk if seat is not None else None,
+        )
+
+        if ticket is None:
+            return Response(
+                {"detail": 'Cannot create a ticket for chosen ticket pool and seat'},
+                status=status.HTTP_409_CONFLICT
+            )
+
+        response_serializer = self.get_serializer(ticket)
+
+        return Response(
+            response_serializer.data,
+            status=status.HTTP_201_CREATED,
+        )
 class TicketPoolViewSet(ModelViewSet):
     queryset = TicketPool.objects.all()
     serializer_class = TicketPoolSerializer

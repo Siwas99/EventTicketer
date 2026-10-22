@@ -140,6 +140,39 @@ class TicketSerializer(serializers.ModelSerializer):
     class Meta:
         model = Ticket
         fields = "__all__"
+        read_only_fields = ("id", "user", "order", "purchase_price")
+
+    def validate(self, attrs):
+        ticket_pool = attrs.get("ticket_pool")
+        seat = attrs.get("seat")
+
+        if self.instance is not None:
+            ticket_pool = attrs.get("ticket_pool", self.instance.ticket_pool)
+            seat = attrs.get("seat", self.instance.seat)
+
+        if ticket_pool is None:
+            raise serializers.ValidationError({
+                "ticket_pool": "Ticket Pool is missing"
+            })
+
+        sector = ticket_pool.sector
+        if sector.sector.type == Sector.Type.SEAT and seat is None:
+            raise serializers.ValidationError({
+                "seat": "Seat is required for seated sector"
+            })
+        elif sector.sector.type == Sector.Type.STAND and seat is not None:
+            raise serializers.ValidationError({
+                "seat": "Stand sector doesn't have seats"
+            })
+
+        if seat is not None and seat.sector_id != sector.sector_id:
+            raise serializers.ValidationError({
+                "seat": "Chosen ticket pool sector doesn't have such seat"
+            })
+
+
+
+        return attrs
 
 class TicketDetailSerializer(serializers.ModelSerializer):
     event = EventDetailSerializer(

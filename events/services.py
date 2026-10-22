@@ -45,7 +45,13 @@ def get_available_event_sectors():
     )
 
 @transaction.atomic
-def try_create_ticket(user, event_sector_id: int) -> Ticket | None:
+def try_create_ticket(
+        user,
+        event_sector_id: int,
+        *,
+        ticket_pool_id: int | None = None,
+        seat_id: int | None = None,
+) -> Ticket | None:
     event_sector = (
         EventSector.objects
         .select_for_update()
@@ -63,20 +69,30 @@ def try_create_ticket(user, event_sector_id: int) -> Ticket | None:
     if ticket_count >= event_sector.effective_capacity:
         return None
 
-    ticket_pool = (
-        TicketPool.objects
-        .filter(sector=event_sector)
-        .order_by("?")
-        .first()
-    )
+    if ticket_pool_id is None:
+        ticket_pool = (
+            TicketPool.objects
+            .filter(sector=event_sector)
+            .order_by("?")
+            .first()
+        )
+    else:
+        ticket_pool = TicketPool.objects.filter(pk = ticket_pool_id, sector=event_sector).first()
 
     if ticket_pool is None:
         return None
 
+
     seat = None
 
     if event_sector.sector.type == Sector.Type.SEAT:
-        seat = get_random_free_seat(event_sector)
+        if seat_id is not None:
+            seat = Seat.objects.filter(pk = seat_id).first()
+
+            if seat is not None and Ticket.objects.filter(seat=seat,ticket_pool__sector=ticket_pool.sector).exists():
+                return None
+        else:
+            seat = get_random_free_seat(event_sector)
 
         if seat is None:
             return None
